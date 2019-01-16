@@ -2,6 +2,8 @@
 //
 // USB MIDI to gate/trig.
 //
+// cc TriggyWiggy.c -o TriggyWiggy -pthread
+//
 // targeted for RPi.
 // 2019 Daniel Skaborn
 
@@ -9,7 +11,7 @@
 #include <stdio.h>
 #include <fcntl.h>
 
-#define MIDIDEVICE	"/dev/snd/midiC1D0"
+#define MIDIDEVICE	"/dev/snd/midiC2D0"
 
 int MIDIin_d;
 //int MIDIout_d;
@@ -20,10 +22,12 @@ void *cmd_MIDI_rcv(void *arg);
 int MIDIin(unsigned char *data) {
 	return read(MIDIin_d, data, 1 );
 }
+/*
 void MIDIout(unsigned char outbuf) {
 	write(MIDIout_d, &outbuf, 1);
 	return;
 }
+*/
 
 unsigned char noteToPin(unsigned char note) {
 	unsigned char pin = 0;
@@ -71,7 +75,7 @@ unsigned char noteToPin(unsigned char note) {
 			pin = 14;
 			break;
 		default:
-			pint = 0;
+			pin = 0;
 	}
 	return pin;
 }
@@ -80,8 +84,11 @@ void pinOff(unsigned char note) {
 	unsigned char pin;
 	pin = noteToPin(note);
 
+	if (pin) {
 // todo GPIO pin off...
-
+		printf("PinOff %d %d\n",pin, note);
+	}
+	
 	return;
 }
 
@@ -89,7 +96,10 @@ void pinOn(unsigned char note) {
 	unsigned char pin;
 	pin = noteToPin(note);
 
+	if (pin) {
 // todo GPIO pin on...
+		printf("PinOn %d %d\n",pin, note);
+	}
 
 	return;
 }
@@ -97,23 +107,22 @@ void pinOn(unsigned char note) {
 void *cmd_MIDI_rcv(void *arg) {
 	unsigned char d=0;
 	unsigned char cc=0;
+	unsigned char tempnote;
 	int rcvstate=0;
-	int tickMidiClock=0;
-	int p;
+
 	MIDIin_d  = open(MIDIDEVICE,O_RDONLY);
 
-
-
+	printf("Started MIDI receive thread\n");
 	while(1) {
 		if (MIDIin(&d)){
 		switch(rcvstate) {
 			case 0:
-				if ((d & 0xF0)==(0x90)) rcvstate = 1; // note off
-				if ((d & 0xF0)==(0x80)) rcvstate = 2; // note on
+				if ((d & 0xF0)==(0x80)) rcvstate = 1; // note off
+				if ((d & 0xF0)==(0x90)) rcvstate = 2; // note on
 //				if ((d & 0xF0)==(0xB0)) rcvstate = 4; //CC msg
 				break;
 			case 1:
-				PinOff(d);
+				pinOff(d);
 				rcvstate = 0;
 				break;
 			case 2:
@@ -131,7 +140,7 @@ void *cmd_MIDI_rcv(void *arg) {
 				cc = d;
 				rcvstate = 5;
 				break;
-				
+
 			case 5: // midi CC control data
 				rcvstate = 0;
 				break;*/
@@ -157,3 +166,4 @@ int main(void) {
 		sleep(1);
 	}
 }
+
